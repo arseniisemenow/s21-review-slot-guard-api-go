@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/arseni/s21-api-client/pkg/client"
+	"github.com/arseniisemenow/s21gql/pkg/client"
 )
 
 // formatDateTime formats time for the API (RFC3339 without nanoseconds)

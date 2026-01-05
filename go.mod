@@ -1,3 +1,3 @@
-module github.com/arseniisemenow/s21-review-slot-guard-api-go
+module github.com/arseniisemenow/s21gql
 
 go 1.23

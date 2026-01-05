@@ -1,9 +1,9 @@
 services:
-  s21-api-client:
+  s21gql:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: s21-api-client
+    container_name: s21gql
     working_dir: /app
     volumes:
       - .:/app
