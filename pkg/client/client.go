@@ -21,6 +21,8 @@ const (
 	GraphQLPath = "/services/graphql"
 	// AuthTokenPath is the path for getting auth token
 	AuthTokenPath = "/auth/realms/EduPowerKeycloak/protocol/openid-connect/token"
+	// ContextInfoPath is the path for context-info endpoint
+	ContextInfoPath = "/services/rest/edu-context/context-info"
 )
 
 // AuthConfig holds authentication configuration
@@ -54,6 +56,8 @@ type Client struct {
 	userRole      string
 	eduProductID  string
 	eduOrgUnitID  string
+	routeInfo     string
+	contextLoaded bool
 }
 
 // ClientOption is a function that configures a Client
@@ -105,6 +109,13 @@ func WithEduProductID(id string) ClientOption {
 func WithEduOrgUnitID(id string) ClientOption {
 	return func(c *Client) {
 		c.eduOrgUnitID = id
+	}
+}
+
+// WithRouteInfo sets the route info header
+func WithRouteInfo(route string) ClientOption {
+	return func(c *Client) {
+		c.routeInfo = route
 	}
 }
 
@@ -174,6 +185,59 @@ func (c *Client) ensureToken(ctx context.Context) error {
 	return nil
 }
 
+// fetchContextInfo retrieves the context headers from the edu-context endpoint
+func (c *Client) fetchContextInfo(ctx context.Context) error {
+	if err := c.ensureToken(ctx); err != nil {
+		return err
+	}
+
+	url := c.baseURL + ContextInfoPath
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", "Bearer "+c.token.AccessToken)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("context-info request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var contextResp ContextInfoResponse
+	if err := json.NewDecoder(resp.Body).Decode(&contextResp); err != nil {
+		return fmt.Errorf("decode response: %w", err)
+	}
+
+	if !contextResp.Success {
+		return fmt.Errorf("context-info request unsuccessful")
+	}
+
+	// Set the context headers from the response
+	c.schoolID = contextResp.Data.ContextHeaders.XEDUSchoolID
+	c.eduProductID = contextResp.Data.ContextHeaders.XEDUProductID
+	c.eduOrgUnitID = contextResp.Data.ContextHeaders.XEDUOrgUnitID
+	c.routeInfo = contextResp.Data.ContextHeaders.XEDURouteInfo
+	c.contextLoaded = true
+
+	return nil
+}
+
+// ensureContext makes sure we have loaded the context info
+func (c *Client) ensureContext(ctx context.Context) error {
+	if c.contextLoaded {
+		return nil
+	}
+	return c.fetchContextInfo(ctx)
+}
+
 // GraphQLRequest represents a GraphQL request
 type GraphQLRequest struct {
 	OperationName string                 `json:"operationName,omitempty"`
@@ -198,6 +262,11 @@ type GraphQLError struct {
 func (c *Client) Do(ctx context.Context, req *GraphQLRequest, resp interface{}) error {
 	if err := c.ensureToken(ctx); err != nil {
 		return fmt.Errorf("ensure token: %w", err)
+	}
+
+	// Auto-load context info if not already set manually
+	if err := c.ensureContext(ctx); err != nil {
+		return fmt.Errorf("ensure context: %w", err)
 	}
 
 	body, err := json.Marshal(req)
@@ -226,6 +295,9 @@ func (c *Client) Do(ctx context.Context, req *GraphQLRequest, resp interface{}) 
 	}
 	if c.eduOrgUnitID != "" {
 		httpReq.Header.Set("x-edu-org-unit-id", c.eduOrgUnitID)
+	}
+	if c.routeInfo != "" {
+		httpReq.Header.Set("x-edu-route-info", c.routeInfo)
 	}
 
 	// Debug logging

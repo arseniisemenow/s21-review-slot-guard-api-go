@@ -470,3 +470,21 @@ type StudentTaskAttributes struct {
 	CookiesCount int `json:"cookiesCount"`
 	Typename    string `json:"__typename"`
 }
+
+// ContextInfo represents the response from /services/rest/edu-context/context-info
+type ContextHeaders struct {
+	XEDUSchoolID    string `json:"X-EDU-SCHOOL-ID"`
+	XEDUProductID   string `json:"X-EDU-PRODUCT-ID"`
+	XEDURouteInfo   string `json:"X-EDU-ROUTE-INFO"`
+	XEDUOrgUnitID   string `json:"X-EDU-ORG-UNIT-ID"`
+}
+
+type ContextInfoData struct {
+	ContextHeaders ContextHeaders `json:"contextHeaders"`
+}
+
+type ContextInfoResponse struct {
+	Success bool             `json:"success"`
+	Data    ContextInfoData  `json:"data"`
+	Error   interface{}      `json:"error"`
+}
