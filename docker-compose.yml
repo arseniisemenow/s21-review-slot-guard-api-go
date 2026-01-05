@@ -1,0 +1,16 @@
+services:
+  s21-api-client:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: s21-api-client
+    working_dir: /app
+    volumes:
+      - .:/app
+      - go-modules:/go/pkg/mod
+    environment:
+      - GO111MODULE=on
+      - CGO_ENABLED=0
+
+volumes:
+  go-modules:
