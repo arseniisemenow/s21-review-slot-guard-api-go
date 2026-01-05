@@ -1,3 +1,4 @@
+# THIS README.md IS VIBECODED!
 # S21 API Client
 
 Go client for the 21-school GraphQL API with full review slot management support.
